@@ -39,7 +39,7 @@ jobs:
           npm install three@^0.170.0
           cp node_modules/three/build/three.module.js www/three.module.js
           cp node_modules/three/build/three.core.js www/three.core.js || true
-          node -e "const fs=require('fs'); let h=fs.readFileSync('www/index.html','utf8'); h=h.replace('https://unpkg.com/three@0.170.0/build/three.module.js','./three.module.js'); fs.writeFileSync('www/index.html',h);"
+          sed -i 's|https://unpkg.com/three@0.170.0/build/three.module.js|./three.module.js|g' www/index.html
           npx cap add android
           npx cap sync android
 
