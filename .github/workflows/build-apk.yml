@@ -1,0 +1,109 @@
+name: Build Chrono Genesis APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Accept Android SDK Licenses
+        run: |
+          SDK_DIR="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=$SDK_DIR" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$SDK_DIR" >> $GITHUB_ENV
+          yes | "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_DIR" --licenses > /dev/null 2>&1 || true
+
+      - name: Install dependencies and bundle offline Three.js
+        run: |
+          npm install
+          npm install three@^0.170.0
+          cp node_modules/three/build/three.module.js www/three.module.js
+          cp node_modules/three/build/three.core.js www/three.core.js || true
+          node -e "const fs=require('fs'); let h=fs.readFileSync('www/index.html','utf8'); h=h.replace('https://unpkg.com/three@0.170.0/build/three.module.js','./three.module.js'); fs.writeFileSync('www/index.html',h);"
+          npx cap add android
+          npx cap sync android
+
+      - name: Apply custom Chrono Genesis app icon
+        run: |
+          python3 - << 'EOF'
+          import os
+          from PIL import Image, ImageDraw
+
+          src = Image.open('www/icon.jpg').convert('RGBA')
+          anydpi = 'android/app/src/main/res/mipmap-anydpi-v26'
+          if os.path.isdir(anydpi):
+              for f in os.listdir(anydpi):
+                  os.remove(os.path.join(anydpi, f))
+
+          sizes = {
+              'mipmap-mdpi': 48,
+              'mipmap-hdpi': 72,
+              'mipmap-xhdpi': 96,
+              'mipmap-xxhdpi': 144,
+              'mipmap-xxxhdpi': 192,
+          }
+          for folder, sz in sizes.items():
+              out_dir = os.path.join('android/app/src/main/res', folder)
+              os.makedirs(out_dir, exist_ok=True)
+              resized = src.resize((sz, sz), Image.LANCZOS)
+
+              mask_sq = Image.new('L', (sz, sz), 0)
+              ImageDraw.Draw(mask_sq).rounded_rectangle((0, 0, sz, sz), radius=int(sz * 0.22), fill=255)
+              sq = Image.new('RGBA', (sz, sz), (0, 0, 0, 0))
+              sq.paste(resized, (0, 0), mask_sq)
+              sq.save(os.path.join(out_dir, 'ic_launcher.png'))
+
+              mask_rd = Image.new('L', (sz, sz), 0)
+              ImageDraw.Draw(mask_rd).ellipse((0, 0, sz, sz), fill=255)
+              rd = Image.new('RGBA', (sz, sz), (0, 0, 0, 0))
+              rd.paste(resized, (0, 0), mask_rd)
+              rd.save(os.path.join(out_dir, 'ic_launcher_round.png'))
+
+              resized.save(os.path.join(out_dir, 'ic_launcher_foreground.png'))
+          EOF
+
+      - name: Build Debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Prepare APK file
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk ChronoGenesis-Android.apk
+          ls -lh ChronoGenesis-Android.apk
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChronoGenesis-Android-APK
+          path: ChronoGenesis-Android.apk
+
+      - name: Publish Direct Download Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0-chrono-apk
+          name: Chrono Genesis Android APK
+          body: Descarga directa de CHRONO GENESIS Low Poly Evolution para Android (.apk) con Three.js empaquetado offline e ícono personalizado.
+          files: ChronoGenesis-Android.apk
+          make_latest: true
