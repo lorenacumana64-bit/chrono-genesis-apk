@@ -1,9 +1,6 @@
 const ERA_CHORDS = [
-  // Era 0: Primordial — misterio cósmico en Do menor suspendido
   [130.81, 196.0, 233.08, 293.66],
-  // Era 1: Mesozoico — amplitud lidia en Re
   [146.83, 220.0, 277.18, 329.63],
-  // Era 2: Edad de Hielo — brillo cristalino en Mi menor 9
   [164.81, 246.94, 293.66, 369.99]
 ];
 
@@ -60,7 +57,6 @@ export class ChronoAudio {
     this.padFilter.Q.value = 1.4;
     this.padFilter.connect(this.musicGain);
 
-    // LFO lento para respiración cósmica del filtro
     this.lfo = this.ctx.createOscillator();
     const lfoGain = this.ctx.createGain();
     this.lfo.type = 'sine';
@@ -76,7 +72,6 @@ export class ChronoAudio {
       const vGain = this.ctx.createGain();
       osc.type = idx % 2 === 0 ? 'triangle' : 'sine';
       osc.frequency.value = freq;
-      osc.detune.value = idx === 1 ? -6 : idx === 2 ? 7 : 0;
       vGain.gain.value = idx === 0 ? 0.34 : 0.22;
       osc.connect(vGain);
       vGain.connect(this.padFilter);
@@ -123,9 +118,7 @@ export class ChronoAudio {
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
       try {
         navigator.vibrate(ms);
-      } catch {
-        // Ignorar en navegadores que bloquean vibración
-      }
+      } catch {}
     }
   }
 
@@ -136,32 +129,25 @@ export class ChronoAudio {
 
     const pentatonic = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
     const base = pentatonic[this.tapIndex % pentatonic.length] * (1 + this.era * 0.06);
-    this.tapIndex += 1;
+    this.tapIndex++;
 
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
-    const overtone = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
     osc.type = 'sine';
     osc.frequency.setValueAtTime(base, now);
     osc.frequency.exponentialRampToValueAtTime(base * 1.18, now + 0.11);
 
-    overtone.type = 'triangle';
-    overtone.frequency.setValueAtTime(base * 2, now);
-
     gain.gain.setValueAtTime(0.001, now);
     gain.gain.linearRampToValueAtTime(0.22, now + 0.012);
     gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.22);
 
     osc.connect(gain);
-    overtone.connect(gain);
     gain.connect(this.sfxGain);
 
     osc.start(now);
-    overtone.start(now);
     osc.stop(now + 0.24);
-    overtone.stop(now + 0.24);
   }
 
   playBuy() {
