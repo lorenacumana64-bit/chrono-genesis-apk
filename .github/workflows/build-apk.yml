@@ -45,15 +45,16 @@ jobs:
 
       - name: Apply custom Chrono Genesis app icon
         run: |
-          python3 - << 'EOF'
-          import os
+          python3 -m pip install pillow
+          python3 - << 'PYEOF'
+          import os, shutil
           from PIL import Image, ImageDraw
 
           src = Image.open('www/icon.jpg').convert('RGBA')
-          anydpi = 'android/app/src/main/res/mipmap-anydpi-v26'
-          if os.path.isdir(anydpi):
-              for f in os.listdir(anydpi):
-                  os.remove(os.path.join(anydpi, f))
+          res_dir = 'android/app/src/main/res'
+          anydpi = os.path.join(res_dir, 'mipmap-anydpi-v26')
+          if os.path.exists(anydpi):
+              shutil.rmtree(anydpi)
 
           sizes = {
               'mipmap-mdpi': 48,
@@ -63,7 +64,7 @@ jobs:
               'mipmap-xxxhdpi': 192,
           }
           for folder, sz in sizes.items():
-              out_dir = os.path.join('android/app/src/main/res', folder)
+              out_dir = os.path.join(res_dir, folder)
               os.makedirs(out_dir, exist_ok=True)
               resized = src.resize((sz, sz), Image.LANCZOS)
 
@@ -80,13 +81,13 @@ jobs:
               rd.save(os.path.join(out_dir, 'ic_launcher_round.png'))
 
               resized.save(os.path.join(out_dir, 'ic_launcher_foreground.png'))
-          EOF
+          PYEOF
 
       - name: Build Debug APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
 
       - name: Prepare APK file
         run: |
@@ -107,3 +108,5 @@ jobs:
           body: Descarga directa de CHRONO GENESIS Low Poly Evolution para Android (.apk) con Three.js empaquetado offline e ícono personalizado.
           files: ChronoGenesis-Android.apk
           make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
