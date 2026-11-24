@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#060913" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Chrono Genesis" />
+  <meta name="description" content="Juego evolutivo 3D Low Poly estilo Cell to Singularity optimizado para móvil y Android." />
+  <title>CHRONO GENESIS: Low Poly Evolution</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/jpeg" href="icon.jpg" />
+  <link rel="apple-touch-icon" href="icon.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Outfit:wght@500;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.170.0/build/three.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="appShell" class="app-shell">
+    <!-- Barra superior compacta -->
+    <header class="top-bar">
+      <div class="stat-block">
+        <span class="stat-label">ADN Total</span>
+        <span id="adnTotalVal" class="stat-value cyan">0</span>
+      </div>
+      <div class="stat-block center">
+        <span class="stat-label">ADN / seg</span>
+        <span id="adnRateVal" class="stat-value amber">0/s</span>
+      </div>
+      <div class="stat-block right">
+        <span class="stat-label">Era Actual</span>
+        <span id="eraNameVal" class="stat-era">Primordial</span>
+      </div>
+      <button id="settingsBtn" class="icon-btn" type="button" aria-label="Configuración y Audio" title="Configuración y Audio">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </header>
+
+    <!-- Mitad superior: Escenario 3D interactivo -->
+    <section id="viewportSection" class="viewport-section">
+      <div id="canvasHost" class="canvas-host"></div>
+      <div id="webglFallback" class="webgl-fallback hidden">
+        <img src="icon.jpg" alt="Chrono Genesis" referrerpolicy="no-referrer" />
+        <p>Toca el planeta para generar ADN evolutivo</p>
+      </div>
+      <div id="floatingLayer" class="floating-layer" aria-hidden="true"></div>
+
+      <div class="viewport-overlay-top">
+        <span id="eraSubtitle" class="era-subtitle">Sopa Primordial · Cámbrico</span>
+        <span id="starFossilsHud" class="fossil-readout hidden">Fósiles Estelares: <b id="starFossilsVal">0</b> (<b id="prestigeBonusVal">+0%</b>)</span>
+      </div>
+
+      <div class="viewport-overlay-bottom">
+        <div class="tap-power-line">
+          <span>Toque: <strong id="tapPowerVal">+1</strong> ADN</span>
+          <span class="sep">·</span>
+          <span>Desliza para rotar · Pellizca para zoom</span>
+        </div>
+        <div class="era-progress-track" title="Progreso hacia la siguiente Era">
+          <div id="eraProgressFill" class="era-progress-fill"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Mitad inferior: Panel evolutivo con pestañas deslizables -->
+    <main class="bottom-deck">
+      <div class="deck-header">
+        <nav class="tab-bar" role="tablist" aria-label="Secciones de evolución">
+          <button id="tabEvolution" class="tab-btn active" type="button" role="tab" aria-selected="true" data-tab="evolution">Evolución</button>
+          <button id="tabUpgrades" class="tab-btn" type="button" role="tab" aria-selected="false" data-tab="upgrades">Mutaciones <span id="upgradeCountText" class="tab-count">0</span></button>
+          <button id="tabPrestige" class="tab-btn" type="button" role="tab" aria-selected="false" data-tab="prestige">Extinción</button>
+        </nav>
+
+        <div id="qtySelector" class="qty-selector" aria-label="Cantidad de compra">
+          <button class="qty-btn active" type="button" data-qty="1">x1</button>
+          <button class="qty-btn" type="button" data-qty="10">x10</button>
+          <button class="qty-btn" type="button" data-qty="max">Max</button>
+        </div>
+      </div>
+
+      <div id="panelSwipeWrap" class="panel-swipe-wrap">
+        <section id="panelEvolution" class="tab-panel active" aria-labelledby="tabEvolution">
+          <div id="evolutionList" class="card-list"></div>
+        </section>
+
+        <section id="panelUpgrades" class="tab-panel" aria-labelledby="tabUpgrades">
+          <div id="upgradesList" class="card-list"></div>
+        </section>
+
+        <section id="panelPrestige" class="tab-panel" aria-labelledby="tabPrestige">
+          <div id="prestigeContainer" class="prestige-panel"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal de Bienvenida / Progreso Offline -->
+  <div id="offlineModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="offlineTitle">
+    <div class="modal-card">
+      <p class="modal-kicker">Simulación Temporal Activa</p>
+      <h2 id="offlineTitle" class="modal-title">Evolución en tu Ausencia</h2>
+      <p id="offlineElapsedText" class="modal-desc">Transcurrieron 0 minutos mientras el planeta seguía evolucionando.</p>
+      <div class="offline-reward-box">
+        <span class="stat-label">ADN Generado</span>
+        <strong id="offlineRewardVal" class="offline-amount">+0</strong>
+      </div>
+      <button id="claimOfflineBtn" class="primary-cta" type="button">Reclamar ADN</button>
+    </div>
+  </div>
+
+  <!-- Modal de Configuración y Audio -->
+  <div id="settingsModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="settingsTitle" class="modal-title">Configuración</h2>
+        <button id="closeSettingsBtn" class="close-btn" type="button" aria-label="Cerrar">✕</button>
+      </div>
+
+      <div class="settings-list">
+        <div class="setting-row">
+          <div>
+            <strong>Música Ambiental Cósmica</strong>
+            <p class="setting-sub">Acordes sintetizados dinámicos por Era</p>
+          </div>
+          <button id="toggleMusicBtn" class="toggle-btn active" type="button">Activa</button>
+        </div>
+
+        <div class="setting-row">
+          <div>
+            <strong>Efectos Cristalinos</strong>
+            <p class="setting-sub">Sonidos al tocar el planeta y evolucionar</p>
+          </div>
+          <button id="toggleSfxBtn" class="toggle-btn active" type="button">Activos</button>
+        </div>
+
+        <div class="setting-row">
+          <div>
+            <strong>Vibración Háptica</strong>
+            <p class="setting-sub">Pulso suave en dispositivos compatibles</p>
+          </div>
+          <button id="toggleHapticBtn" class="toggle-btn active" type="button">Activa</button>
+        </div>
+
+        <div class="setting-row">
+          <div>
+            <strong>Vista del Bioma 3D</strong>
+            <p class="setting-sub">Previsualiza Eras desbloqueadas</p>
+          </div>
+          <select id="biomeViewSelect" class="biome-select" aria-label="Seleccionar vista de bioma">
+            <option value="auto">Automática (Era actual)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-danger">
+        <button id="hardResetBtn" class="danger-btn" type="button">Borrar Partida Local</button>
+        <div id="confirmResetRow" class="confirm-reset hidden">
+          <span>¿Seguro? Se borrará todo el progreso y Fósiles Estelares.</span>
+          <div class="confirm-actions">
+            <button id="cancelResetBtn" class="secondary-btn" type="button">Cancelar</button>
+            <button id="confirmResetBtn" class="danger-btn solid" type="button">Confirmar Borrado</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Confirmación de Ciclo Cósmico (Prestigio) -->
+  <div id="prestigeModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="prestigeModalTitle">
+    <div class="modal-card">
+      <p class="modal-kicker">Ciclo Cósmico</p>
+      <h2 id="prestigeModalTitle" class="modal-title">Iniciar Nueva Línea Temporal</h2>
+      <p class="modal-desc">La extinción reiniciará tus nodos y ADN actuales, pero conservarás tus Fósiles Estelares y sumarás los nuevos de este ciclo.</p>
+      <div class="offline-reward-box">
+        <span class="stat-label">Fósiles Estelares a Recibir</span>
+        <strong id="modalFossilsGain" class="offline-amount amber">+0</strong>
+      </div>
+      <div class="confirm-actions">
+        <button id="cancelPrestigeBtn" class="secondary-btn" type="button">Cancelar</button>
+        <button id="confirmPrestigeBtn" class="primary-cta violet" type="button">Activar Extinción</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Banner de Nueva Era Desbloqueada -->
+  <div id="eraToast" class="era-toast hidden" role="status" aria-live="polite">
+    <span class="toast-kicker">Nueva Era Alcanzada</span>
+    <strong id="eraToastTitle">Mesozoico: Triásico y Jurásico</strong>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
