@@ -1,0 +1,12 @@
+{
+  "appId": "com.chronogenesis.evolution",
+  "appName": "Chrono Genesis",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#060913"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
